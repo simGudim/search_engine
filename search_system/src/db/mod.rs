@@ -11,7 +11,7 @@ use tracing::{info, instrument};
 use failure::Error;
 use std::thread;
 use r2d2::ManageConnection;
-use diesel::r2d2::{ Pool, PooledConnection, ConnectionManager, PoolError };
+use diesel::r2d2::{ Pool, PooledConnection, ConnectionManager, PoolError};
 
 pub type PgPool = Pool<ConnectionManager<PgConnection>>;
 pub type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
@@ -36,6 +36,17 @@ impl Db {
             pool
         };
         db    
+    }
+
+    pub async fn add_user(user: &models::User, conn: PooledConnection<ConnectionManager<PgConnection>>) -> Result<usize, Error> {
+        use self::schema::users::dsl::*;
+
+        let row_inserted = diesel::insert_into(users)
+            .values(user)
+            .returning(schema::users::id)
+            .execute(&conn)
+            .expect("Error inserting person");
+        Ok(row_inserted)
     }
 
 }

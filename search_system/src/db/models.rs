@@ -7,10 +7,9 @@ use validator::Validate;
 
 pub type Id = i32;
 
-#[derive(Debug, Identifiable, Queryable, Serialize, Deserialize)]
+#[derive(Debug, Queryable, Serialize, Deserialize, Insertable)]
 #[table_name = "users"]
 pub struct User {
-    pub id: Uuid,
     pub username: String,
     pub email: String,
     #[serde(skip_serializing)]

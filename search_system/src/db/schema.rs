@@ -1,7 +1,6 @@
 table! {
     users (id) {
-        id -> Int4,
-        user_id -> Nullable<Uuid>,
+        id -> Uuid,
         username -> Varchar,
         email -> Varchar,
         password_hash -> Varchar,
