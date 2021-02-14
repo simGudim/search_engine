@@ -9,7 +9,7 @@ extern crate validator_derive;
 
 use crate::conf::Config;
 use crate::db::Db;
-use crate::routes::{echo, login, manual_hello, index};
+use crate::routes::{echo, login, manual_hello, index, register};
 
 use actix_files as fs;
 use actix_web::{get, post, web, App, HttpServer};
@@ -31,6 +31,7 @@ async fn main() -> std::io::Result<()> {
             .data(db.pool.clone())
             .service(fs::Files::new("/static", ".").show_files_listing())
             .route("/", web::get().to(index))
+            .service(register)
             .service(echo)
             .service(login)
             .route("/hey", web::get().to(manual_hello))

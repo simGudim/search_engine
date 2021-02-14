@@ -1,3 +1,6 @@
+pub mod crypto;
+
+use crypto::CryptoService;
 use dotenv::dotenv;
 use serde::Deserialize;
 use eyre::WrapErr;
@@ -37,4 +40,5 @@ impl Config {
         c.try_into()
             .context("config from env")
     }
+
 }

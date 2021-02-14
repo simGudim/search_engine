@@ -1,6 +1,9 @@
 pub mod models;
 pub mod schema;
 
+
+use crate::conf::crypto::CryptoService;
+
 use diesel::{Connection, ExpressionMethods, OptionalExtension, PgConnection, 
     QueryDsl, RunQueryDsl, insert_into};
 use std::env;
@@ -12,11 +15,6 @@ use diesel::r2d2::{ Pool, PooledConnection, ConnectionManager, PoolError };
 
 pub type PgPool = Pool<ConnectionManager<PgConnection>>;
 pub type PgPooledConnection = PooledConnection<ConnectionManager<PgConnection>>;
-
-pub fn init_pool(database_url: &str) -> Result<PgPool, PoolError> {
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-    Pool::builder().build(manager)
-}
 
 #[derive(Clone)]
 pub struct Db {
@@ -37,10 +35,8 @@ impl Db {
         let db = Self {
             pool
         };
-        db
-        // pool
-        
-            
+        db    
     }
+
 }
 

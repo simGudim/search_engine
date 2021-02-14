@@ -1,11 +1,14 @@
 use crate::db::models::{NewUser, User, UpdateProfile};
 use crate::db::schema::users;
+use crate::db::PgPool;
+use crate::conf::crypto::CryptoService;
 
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_files::NamedFile;
 use actix_web::{HttpRequest, Result};
 use askama::{Template};
 use std::path::PathBuf;
+use std::env;
 use tracing::{info, instrument};
 
 #[derive(Template)]
@@ -22,9 +25,14 @@ pub async fn index(_req: HttpRequest) -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().content_type("text/html").body(s))
 }
 
-#[post("/register")]
-pub async fn register(info: web::Json<NewUser>) -> impl Responder {
-    HttpResponse::Ok().body("Login")
+#[get("/register")]
+pub async fn register(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> impl Responder {
+    let secret = env::var("SECRET_KEY")
+        .expect("SECRET KEY must be set");
+    let crypto = CryptoService::crypto_service(secret);
+    let password_hash: String = crypto.hash_password(info.password.clone()).unwrap();
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    HttpResponse::Ok().body("Hello")
 }
 
 #[post("/login")]
