@@ -14,6 +14,7 @@ use askama::{Template};
 use chrono::{Utc};
 use std::path::PathBuf;
 use std::env;
+use tracing::{debug, instrument, info};
 use uuid::Uuid;
 
 
@@ -65,6 +66,12 @@ pub async fn register(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> Resu
     }
 }
 
+#[get("/login")]
+pub async fn login_link() -> Result<NamedFile> {
+    let path: PathBuf = "./templates/login.html".parse().unwrap();
+    Ok(NamedFile::open(path)?)
+}
+
 #[post("/login")]
 pub async fn login(pool: web::Data<PgPool>, id: Identity, form: web::Form<LoginForm>) -> Result<NamedFile> {
     let mut verifier = Verifier::default();
@@ -87,18 +94,25 @@ pub async fn login(pool: web::Data<PgPool>, id: Identity, form: web::Form<LoginF
 }
 
 #[get("logout")]
-pub async fn logout(id: Identity) -> Result<NamedFile> {
-    id.forget();                   
-    let path: PathBuf = "./templates/login.html".parse().unwrap();
-    Ok(NamedFile::open(path)?)
+pub async fn logout(id: Identity) -> impl Responder {
+    if id.identity().is_some() {
+        id.forget();
+        HttpResponse::Ok().body(format!("{:?}", id.identity()))
+
+        // let path: PathBuf = "./templates/login.html".parse().unwrap();
+        // Ok(NamedFile::open(path)?)
+    } else {
+        // let path: PathBuf = "./templates/login.html".parse().unwrap();
+        // Ok(NamedFile::open(path)?)
+        HttpResponse::Ok().body(format!("{:?}", id.identity()))
+    }              
 }
-
-
 
 #[get("/search")]
 pub async fn search(id: Identity) -> impl Responder {
-    if let Some(id) = id.identity() {
-        HttpResponse::Ok().body("hello")
+    if id.identity().is_some() {
+        // HttpResponse::Ok().body("hello")
+        HttpResponse::Ok().body(format!("{:?}", id.identity()))
     } else {
         HttpResponse::Ok().body("nope!")
     }

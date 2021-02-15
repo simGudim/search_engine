@@ -19,6 +19,7 @@ use actix_web::middleware::Logger;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use tracing::{info, instrument};
 
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 
@@ -40,6 +41,7 @@ async fn main() -> std::io::Result<()> {
             .route("/", web::get().to(routes::index))
             .service(routes::register)
             .service(routes::register_link)
+            .service(routes::login_link)
             .service(routes::login)
             .service(routes::search)
             .service(routes::logout)
