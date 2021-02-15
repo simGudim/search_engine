@@ -3,6 +3,7 @@ pub mod schema;
 
 
 use crate::conf::crypto::CryptoService;
+use models::{User};
 
 use diesel::{Connection, ExpressionMethods, OptionalExtension, PgConnection, 
     QueryDsl, RunQueryDsl, insert_into};
@@ -49,5 +50,13 @@ impl Db {
         Ok(row_inserted)
     }
 
-}
+    pub async fn get_user_by_username(username: String, conn: &PooledConnection<ConnectionManager<PgConnection>>) -> Option<User> {
+        use self::schema::users::dsl::*;
+        let mut items = users
+            .filter(username.eq(&username))
+            .load::<models::User>(conn)
+            .expect("Error loading person");
+        items.pop()
+    }
 
+}

@@ -1,23 +1,21 @@
-use crate::db::models::{NewUser, User, UpdateProfile};
+mod forms;
+
+use forms::{HelloTemplate, LoginForm, NewUser};
+use crate::db::models::{User};
 use crate::db::{PgPool, Db};
 use crate::conf::crypto::CryptoService;
 
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_files::NamedFile;
 use actix_web::{HttpRequest, Result};
+use actix_identity::{Identity};
+use argonautica::Verifier;
 use askama::{Template};
 use chrono::{Utc};
-use failure::Error;
 use std::path::PathBuf;
 use std::env;
-use tracing::{info, instrument};
 use uuid::Uuid;
 
-#[derive(Template)]
-#[template(path = "login.html")]
-pub struct HelloTemplate<'a> {
-    name: &'a str,
-}
 
 pub async fn index(_req: HttpRequest) -> Result<HttpResponse> {
     let temp = HelloTemplate {
@@ -34,38 +32,77 @@ pub async fn register_link() -> Result<NamedFile> {
 }
 
 #[post("/register")]
-pub async fn register(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> impl Responder {
+pub async fn register(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> Result<NamedFile> {
     let secret = env::var("SECRET_KEY")
         .expect("SECRET KEY must be set");
     let crypto = CryptoService::crypto_service(secret);
     let id_hash: String = crypto.hash_password(info.password.clone()).unwrap();
     let conn = pool.get().expect("couldn't get db connection from pool");
-    
-    // Create insertion model
-    let uuid_hash = Uuid::new_v4();
-    let user = User {
-        username: info.username.clone(),
-        email: info.email.clone(),
-        password_hash: id_hash,
-        full_name: None,
-        bio: None,
-        image: None,
-        created_at: Utc::now().naive_utc(),
-        updated_at: Utc::now().naive_utc()
-    };
-    let row = Db::add_user(&user, conn).await.unwrap();
-    // normal diesel operations
-    HttpResponse::Ok().body(format!("Hello: {}", row))
+    if let Some(user) = Db::get_user_by_username(info.username.clone(), &conn).await {
+        if user.username == info.username {
+            let path: PathBuf = "./templates/register.html".parse().unwrap();
+            Ok(NamedFile::open(path)?)
+        } else {
+            let uuid_hash = Uuid::new_v4();
+            let user = User {
+                id: uuid_hash, 
+                username: info.username.clone(),
+                email: info.email.clone(),
+                password_hash: id_hash,
+                full_name: None,
+                bio: None,
+                image: None,
+                created_at: Utc::now().naive_utc(),
+                updated_at: Utc::now().naive_utc()
+            };
+            Db::add_user(&user, conn).await.unwrap();
+            let path: PathBuf = "./templates/login.html".parse().unwrap();
+            Ok(NamedFile::open(path)?)
+        }
+    } else {
+        let path: PathBuf = "./templates/register.html".parse().unwrap();
+        Ok(NamedFile::open(path)?)
+    }
 }
 
 #[post("/login")]
-pub async fn login(info: web::Json<NewUser>) -> impl Responder {
-    HttpResponse::Ok().body("Login")
+pub async fn login(pool: web::Data<PgPool>, id: Identity, form: web::Form<LoginForm>) -> Result<NamedFile> {
+    let mut verifier = Verifier::default();
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    let user = Db::get_user_by_username(form.username.clone(), &conn).await.unwrap();
+    let is_valid = verifier
+        .with_hash(user.password_hash)
+        .with_password(form.password.clone())
+        .with_secret_key(env::var("SECRET_KEY").expect("SECRET KEY must be set"))
+        .verify()
+        .unwrap();
+    if is_valid {
+        let path: PathBuf = "./templates/search.html".parse().unwrap();
+        id.remember(form.username.to_owned());
+        Ok(NamedFile::open(path)?)
+    } else {
+        let path: PathBuf = "./templates/login.html".parse().unwrap();
+        Ok(NamedFile::open(path)?)
+    }
 }
 
-#[post("/search")]
-pub async fn echo(req_body: String) -> impl Responder {
-    HttpResponse::Ok().body(req_body)
+#[get("logout")]
+pub async fn logout(id: Identity) -> Result<NamedFile> {
+    id.forget();                   
+    let path: PathBuf = "./templates/login.html".parse().unwrap();
+    Ok(NamedFile::open(path)?)
+}
+
+
+
+#[get("/search")]
+pub async fn search(id: Identity) -> impl Responder {
+    if let Some(id) = id.identity() {
+        HttpResponse::Ok().body("hello")
+    } else {
+        HttpResponse::Ok().body("nope!")
+    }
+    
 }
 
 pub async fn manual_hello() -> impl Responder {
