@@ -1,7 +1,9 @@
 pub mod models;
 pub mod schema;
 
+
 use models::{User};
+
 use diesel::{Connection, ExpressionMethods, OptionalExtension, PgConnection, 
     QueryDsl, RunQueryDsl, insert_into};
 use std::env;
@@ -39,7 +41,7 @@ impl Db {
     pub async fn add_user(user: &models::User, conn: PooledConnection<ConnectionManager<PgConnection>>) -> Result<usize, Error> {
         use self::schema::users::dsl::*;
 
-        let row_inserted = insert_into(users)
+        let row_inserted = diesel::insert_into(users)
             .values(user)
             .returning(schema::users::id)
             .execute(&conn)
@@ -47,10 +49,10 @@ impl Db {
         Ok(row_inserted)
     }
 
-    pub async fn get_user_by_username(user_name: &String, conn: &PooledConnection<ConnectionManager<PgConnection>>) -> Option<User> {
+    pub async fn get_user_by_username(username: String, conn: &PooledConnection<ConnectionManager<PgConnection>>) -> Option<User> {
         use self::schema::users::dsl::*;
         let mut items = users
-            .filter(username.eq(user_name))
+            .filter(username.eq(&username))
             .load::<models::User>(conn)
             .expect("Error loading person");
         items.pop()

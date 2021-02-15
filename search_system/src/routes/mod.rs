@@ -14,7 +14,6 @@ use askama::{Template};
 use chrono::{Utc};
 use std::path::PathBuf;
 use std::env;
-use tracing::{debug, instrument, info};
 use uuid::Uuid;
 
 
@@ -39,29 +38,25 @@ pub async fn register(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> Resu
     let crypto = CryptoService::crypto_service(secret);
     let id_hash: String = crypto.hash_password(info.password.clone()).unwrap();
     let conn = pool.get().expect("couldn't get db connection from pool");
-    if let Some(user) = Db::get_user_by_username(&info.username, &conn).await {
-        if user.username == info.username {
-            let path: PathBuf = "./templates/register.html".parse().unwrap();
-            Ok(NamedFile::open(path)?)
-        } else {
-            let uuid_hash = Uuid::new_v4();
-            let user = User {
-                id: uuid_hash, 
-                username: info.username.clone(),
-                email: info.email.clone(),
-                password_hash: id_hash,
-                full_name: None,
-                bio: None,
-                image: None,
-                created_at: Utc::now().naive_utc(),
-                updated_at: Utc::now().naive_utc()
-            };
-            Db::add_user(&user, conn).await.unwrap();
-            let path: PathBuf = "./templates/login.html".parse().unwrap();
-            Ok(NamedFile::open(path)?)
-        }
-    } else {
+
+    if let Some(_user) = Db::get_user_by_username(info.username.clone(), &conn).await {
         let path: PathBuf = "./templates/register.html".parse().unwrap();
+        Ok(NamedFile::open(path)?)
+    } else {
+        let uuid_hash = Uuid::new_v4();
+        let user = User {
+            id: uuid_hash, 
+            username: info.username.clone(),
+            email: info.email.clone(),
+            password_hash: id_hash,
+            full_name: None,
+            bio: None,
+            image: None,
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc()
+        };
+        Db::add_user(&user, conn).await.unwrap();
+        let path: PathBuf = "./templates/login.html".parse().unwrap();
         Ok(NamedFile::open(path)?)
     }
 }
@@ -76,7 +71,7 @@ pub async fn login_link() -> Result<NamedFile> {
 pub async fn login(pool: web::Data<PgPool>,form: web::Form<LoginForm>, id: Identity) -> Result<NamedFile> {
     let mut verifier = Verifier::default();
     let conn = pool.get().expect("couldn't get db connection from pool");
-    let user = Db::get_user_by_username(&form.username, &conn).await.unwrap();
+    let user = Db::get_user_by_username(form.username.clone(), &conn).await.unwrap();
     let is_valid = verifier
         .with_hash(user.password_hash)
         .with_password(form.password.clone())
@@ -85,7 +80,7 @@ pub async fn login(pool: web::Data<PgPool>,form: web::Form<LoginForm>, id: Ident
         .unwrap();
     if is_valid {
         let path: PathBuf = "./templates/search.html".parse().unwrap();
-        id.remember(form.username.to_owned());
+        id.remember(user.id.to_string());
         Ok(NamedFile::open(path)?)
     } else {
         let path: PathBuf = "./templates/login.html".parse().unwrap();
@@ -98,8 +93,6 @@ pub async fn logout_now(id: Identity)-> impl Responder {
     if id.identity().is_some() {
         id.forget();
         HttpResponse::Ok().body(format!("{:?}", id.identity()))
-    // HttpResponse::Ok().body(format!("{:?}", "hello"))
-
         // let path: PathBuf = "./templates/login.html".parse().unwrap();
         // Ok(NamedFile::open(path)?)
     } else {
