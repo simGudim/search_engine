@@ -44,7 +44,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::login_link)
             .service(routes::login)
             .service(routes::search)
-            .service(routes::logout)
+            .service(routes::logout_now)
             .route("/hey", web::get().to(routes::manual_hello))
     })
     .bind(format!("{}:{}", config.host, config.port))?
