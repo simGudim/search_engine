@@ -14,10 +14,10 @@ use crate::conf::Config;
 use crate::db::Db;
 
 use actix_files as fs;
-use actix_web::{get, post, web, App, HttpServer};
+use actix_web::{web, App, HttpServer};
 use actix_web::middleware::Logger;
 use actix_identity::{CookieIdentityPolicy, IdentityService};
-use tracing::{info, instrument};
+use tracing::{info};
 
 
 #[actix_web::main]
@@ -44,7 +44,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::login_link)
             .service(routes::login)
             .service(routes::search)
-            .service(routes::logout_now)
+            .service(routes::logout)
             .route("/hey", web::get().to(routes::manual_hello))
     })
     .bind(format!("{}:{}", config.host, config.port))?

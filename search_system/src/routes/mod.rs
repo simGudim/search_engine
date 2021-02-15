@@ -39,7 +39,7 @@ pub async fn register(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> Resu
     let id_hash: String = crypto.hash_password(info.password.clone()).unwrap();
     let conn = pool.get().expect("couldn't get db connection from pool");
 
-    if let Some(_user) = Db::get_user_by_username(info.username.clone(), &conn).await {
+    if let Some(_user) = Db::get_user_by_username(&info.username, &conn).await {
         let path: PathBuf = "./templates/register.html".parse().unwrap();
         Ok(NamedFile::open(path)?)
     } else {
@@ -71,7 +71,7 @@ pub async fn login_link() -> Result<NamedFile> {
 pub async fn login(pool: web::Data<PgPool>,form: web::Form<LoginForm>, id: Identity) -> Result<NamedFile> {
     let mut verifier = Verifier::default();
     let conn = pool.get().expect("couldn't get db connection from pool");
-    let user = Db::get_user_by_username(form.username.clone(), &conn).await.unwrap();
+    let user = Db::get_user_by_username(&form.username, &conn).await.unwrap();
     let is_valid = verifier
         .with_hash(user.password_hash)
         .with_password(form.password.clone())
@@ -89,25 +89,25 @@ pub async fn login(pool: web::Data<PgPool>,form: web::Form<LoginForm>, id: Ident
 }
 
 #[get("/logout")]
-pub async fn logout_now(id: Identity)-> impl Responder {
+pub async fn logout(id: Identity)-> impl Responder {
     if id.identity().is_some() {
         id.forget();
-        HttpResponse::Ok().body(format!("{:?}", id.identity()))
-        // let path: PathBuf = "./templates/login.html".parse().unwrap();
-        // Ok(NamedFile::open(path)?)
+        HttpResponse::Found().header("Location", "/login").finish()
     } else {
-        // let path: PathBuf = "./templates/login.html".parse().unwrap();
-        // Ok(NamedFile::open(path)?)
-        HttpResponse::Ok().body(format!("{:?}", id.identity()))
+        HttpResponse::Ok()
+            .content_type("text/html")
+            .body(forms::Something.render().unwrap())
     }              
 }
 
 #[get("/search")]
-pub async fn search(id: Identity) -> impl Responder {
+pub async fn search(id: Identity) -> impl Responder{
     if id.identity().is_some() {
-        HttpResponse::Ok().body("hello")
+        HttpResponse::Ok()
+            .content_type("text/html")
+            .body(forms::Search.render().unwrap())
     } else {
-        HttpResponse::Ok().body("nope!")
+        HttpResponse::Found().header("Location", "/login").finish()
     }
     
 }

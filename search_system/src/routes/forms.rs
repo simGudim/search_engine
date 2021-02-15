@@ -1,5 +1,5 @@
 use askama::{Template};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize};
 use validator::Validate;
 
 
@@ -8,6 +8,18 @@ use validator::Validate;
 pub struct HelloTemplate<'a> {
     pub name: &'a str,
 }
+
+#[derive(Template)]
+#[template(path = "login.html")]
+pub struct Login;
+
+#[derive(Template)]
+#[template(path = "something.html")]
+pub struct Something;
+
+#[derive(Template)]
+#[template(path = "search.html")]
+pub struct Search;
 
 #[derive(Debug, Deserialize)]
 pub struct LoginForm{

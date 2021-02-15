@@ -3,9 +3,7 @@ use crate::db::schema::{users};
 use chrono::NaiveDateTime;
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
-use validator::Validate;
 
-pub type Id = i32;
 
 #[derive(Debug, Queryable, Serialize, Deserialize, Insertable)]
 #[table_name = "users"]

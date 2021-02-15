@@ -1,20 +1,13 @@
 pub mod crypto;
 
-use crypto::CryptoService;
 use dotenv::dotenv;
 use serde::Deserialize;
 use eyre::WrapErr;
 use color_eyre::Result;
 use tracing::{info, instrument};
 use tracing_subscriber::EnvFilter;
-use std::time::Duration;
-use std::sync::Arc;
-use r2d2::Pool;
-use r2d2_postgres::{postgres::NoTls, PostgresConnectionManager};
-use std::env;
-use std;
-use failure::Error;
-use r2d2::ManageConnection;
+
+
 
 
 

@@ -1,7 +1,6 @@
 use color_eyre::Result;
 use std::sync::Arc;
 use argonautica::Hasher;
-use futures::compat::Future01CompatExt;
 use eyre::eyre;
 use tracing::instrument;
 
