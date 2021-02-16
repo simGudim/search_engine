@@ -17,8 +17,9 @@ pub struct Analyzer {
     max_docs: i32
 }
 
+#[derive(Debug)]
 pub struct WordStats {
-    docs: Vec<i32>,
+    docs: HashSet<i32>,
     position: Vec<i32>,
     word_length: i32,
     freq: i32,
@@ -56,7 +57,33 @@ pub fn create_tokens_list<'a>(text: &'a String) -> Vec<String> {
 }
 
 pub fn create_index(data: Vec<Vec<String>>) -> HashMap<String, WordStats> {
-    let index = HashMap::new();
+    let mut index: HashMap<String, WordStats> = HashMap::new();
+    for i in 0..data.len() {
+        for x in 0..data[i].len() {
+            if index.contains_key(&data[i][x]) {
+                (*index.get_mut(&data[i][x]).unwrap()).docs.insert(i as i32);
+                (*index.get_mut(&data[i][x]).unwrap()).position.push(x as i32);
+                (*index.get_mut(&data[i][x]).unwrap()).freq += 1;
+            } else {
+                let mut docs: HashSet<i32> = HashSet::new();
+                docs.insert(i as i32);
+
+                let mut position = vec![];
+                position.push(x as i32);
+
+                let word_length = data[i][x].chars().count() as i32;
+
+                let stat = WordStats {
+                    docs,
+                    position,
+                    word_length,
+                    freq: 1
+                };
+                index.insert(data[i][x].clone(), stat);
+            }
+        }
+    }
+    index
 }
 
 
@@ -79,9 +106,11 @@ mod tests {
     #[test]
     fn general_test() {
         let docs: Vec<String> = read_file_from_dir("./test_data");
+        let mut temp = vec![];
         for i in docs {
-            println!("{:?}", create_tokens_list(&i));
+            temp.push(create_tokens_list(&i));
         }
+        println!("{:?}", create_index(temp));
         assert_eq!(create_tokens_list(&"dkasnd".to_owned()), vec!["foo".to_owned()]);
     }
 }
