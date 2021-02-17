@@ -2,11 +2,9 @@ use std::io::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
-use std::env;
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 use porter_stemmer::stem;
-use std::iter::FromIterator;
 use std::collections::{HashSet, HashMap};
 use stopwords::{Spark, Language, Stopwords};
 use std::fs::{self, DirEntry};
@@ -86,6 +84,68 @@ pub fn create_index(data: Vec<Vec<String>>) -> HashMap<String, WordStats> {
     index
 }
 
+pub fn merge(A: Vec<i32>, mut l1: usize, mut r1: usize, mut l2: usize, mut r2: usize,) -> Vec<i32> {
+    let mut temp: Vec<i32> = vec![];
+    let mut index = 0;
+    while l1 <= r1 && l2 <= r2 {
+        if A[l1] <= A[l2] {
+            temp.push(A[l1]);
+            index += 1;
+            l1 += 1
+        } else {
+            temp.push(A[l2]);
+            index += 1;
+            l2 += 1;
+        }
+    }
+
+    while l1 <= r1 {
+        temp.push(A[l1]);
+        index += 1;
+        l1 += 1;
+    }
+
+    while l2 <= r2 {
+        temp.push(A[l2]);
+        index += 1;
+        l2 += 1;
+    }
+
+    temp
+}
+
+pub fn mergesort(mut items: Vec<i32>) -> Vec<i32> {
+    let mut size: usize = 1;
+    let n: usize = items.len();
+    while size < n {
+        let mut i: usize = 0;
+
+        while i < n {
+            let mut l1: usize = i;
+            let mut r1: usize = i + size - 1;
+            let mut r2: usize= i + 2 * size - 1;
+            let mut l2: usize= i + size;
+
+            if l2 >= n {
+                break
+            }
+
+            if r2 >= n {
+                r2 = n - 1;
+            }
+
+            let temp = merge(items.clone(), l1, r1, l2, r2);
+            for j in 0..(r2-l1 +1) {
+                items[i + j] = temp[j];
+            }
+            i = i + 2 * size;
+        }
+        size = 2 * size;
+    }
+    items
+}
+
+
 
 #[cfg(test)]
 mod tests {
@@ -104,6 +164,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn general_test() {
         let docs: Vec<String> = read_file_from_dir("./test_data");
         let mut temp = vec![];
@@ -111,6 +172,13 @@ mod tests {
             temp.push(create_tokens_list(&i));
         }
         println!("{:?}", create_index(temp));
-        assert_eq!(create_tokens_list(&"dkasnd".to_owned()), vec!["foo".to_owned()]);
+        assert_eq!(1+1 , 2);
+    }
+
+    #[test]
+    fn test_sort() {
+        let items: Vec<i32> = vec![2,4,7,5,9, 5, 10];
+        let check: Vec<i32> = vec![2,4, 5, 5, 7, 9, 10];
+        assert_eq!(mergesort(items), check);
     }
 }
