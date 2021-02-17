@@ -11,9 +11,9 @@ use std::fs::{self, DirEntry};
 use std::path::Path;
 
 
-pub struct Analyzer {
-    max_docs: i32
-}
+// pub struct Analyzer {
+//     max_docs: i32
+// }
 
 #[derive(Debug)]
 pub struct WordStats {
@@ -45,13 +45,12 @@ pub fn read_file_from_dir(path: &str) -> Vec<String> {
 pub fn create_tokens_list<'a>(text: &'a String) -> Vec<String> {
     let re = Regex::new("[^0-9a-zA-Z]+").unwrap();
     let text_no_special_char = re.replace_all(text.as_str(), " ");
-    let text_lowercase: &str = text_no_special_char.to_lowercase().as_ref();
     let tokenised_sentence = text_no_special_char.unicode_words();
     let tokens: String = tokenised_sentence.map(stem).fold(String::new(), |last, next| { format!("{}{} ", &last, &next)});
     let stops: HashSet<_> = Spark::stopwords(Language::English).unwrap().iter().collect();
     let mut word_list: Vec<&str> = tokens.split(" ").collect();
     word_list.retain(|s| !stops.contains(s));
-    (*word_list).to_vec().iter().map(|x| x.to_string()).collect::<Vec<String>>()
+    (*word_list).to_vec().iter().map(|x| x.to_string().to_lowercase()).collect::<Vec<String>>()
 }
 
 pub fn create_index(data: Vec<Vec<String>>) -> HashMap<String, WordStats> {
@@ -84,47 +83,46 @@ pub fn create_index(data: Vec<Vec<String>>) -> HashMap<String, WordStats> {
     index
 }
 
-pub fn merge(A: Vec<i32>, mut l1: usize, mut r1: usize, mut l2: usize, mut r2: usize,) -> Vec<i32> {
-    let mut temp: Vec<i32> = vec![];
+pub fn merge<T: Copy + PartialOrd>(a: &Vec<T>, mut l1: usize, r1: usize, mut l2: usize, r2: usize,) -> Vec<T> {
+    let mut temp = vec![];
     let mut index = 0;
     while l1 <= r1 && l2 <= r2 {
-        if A[l1] <= A[l2] {
-            temp.push(A[l1]);
+        if a[l1] <= a[l2] {
+            temp.push(a[l1]);
             index += 1;
             l1 += 1
         } else {
-            temp.push(A[l2]);
+            temp.push(a[l2]);
             index += 1;
             l2 += 1;
         }
     }
 
     while l1 <= r1 {
-        temp.push(A[l1]);
+        temp.push(a[l1]);
         index += 1;
         l1 += 1;
     }
 
     while l2 <= r2 {
-        temp.push(A[l2]);
+        temp.push(a[l2]);
         index += 1;
         l2 += 1;
     }
-
     temp
 }
 
-pub fn mergesort(mut items: Vec<i32>) -> Vec<i32> {
+pub fn mergesort<T: Copy + PartialOrd>(mut items: Vec<T>) -> Vec<T> {
     let mut size: usize = 1;
     let n: usize = items.len();
     while size < n {
         let mut i: usize = 0;
 
         while i < n {
-            let mut l1: usize = i;
-            let mut r1: usize = i + size - 1;
+            let l1: usize = i;
+            let r1: usize = i + size - 1;
             let mut r2: usize= i + 2 * size - 1;
-            let mut l2: usize= i + size;
+            let l2: usize= i + size;
 
             if l2 >= n {
                 break
@@ -134,7 +132,7 @@ pub fn mergesort(mut items: Vec<i32>) -> Vec<i32> {
                 r2 = n - 1;
             }
 
-            let temp = merge(items.clone(), l1, r1, l2, r2);
+            let temp = merge(&items, l1, r1, l2, r2);
             for j in 0..(r2-l1 +1) {
                 items[i + j] = temp[j];
             }
@@ -152,20 +150,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
-    fn test_read() {
-        assert_eq!(read_file_from_dir("./test_data/article1.txt"), vec!["foo".to_owned()]);
-    }
-
-    #[test]
-    #[ignore]
-    fn test_split() {
-        assert_eq!(create_tokens_list(&"foo,.,.,.,daksndaskdnk   ,dsadasd ,adasd, asdasd".to_owned()), vec!["foo".to_owned()]);
-    }
-
-    #[test]
-    #[ignore]
-    fn general_test() {
+    fn execute() {
         let docs: Vec<String> = read_file_from_dir("./test_data");
         let mut temp = vec![];
         for i in docs {
@@ -176,9 +161,10 @@ mod tests {
     }
 
     #[test]
-    fn test_sort() {
-        let items: Vec<i32> = vec![2,4,7,5,9, 5, 10];
-        let check: Vec<i32> = vec![2,4, 5, 5, 7, 9, 10];
-        assert_eq!(mergesort(items), check);
+    fn test_mergesort() {
+        let mut items: Vec<&str> = vec!["ann", "black", "shoe", "tree", "jack", "abb"];
+        let check: Vec<&str> = vec!["abb", "ann", "black", "jack", "shoe", "tree"];
+        items = mergesort(items);
+        assert_eq!(items, check);
     }
 }
