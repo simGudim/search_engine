@@ -1,0 +1,13 @@
+version: '3'
+services:
+  database:
+    image: 'mongo'
+    container_name: 'mongo_service'
+    environment:
+      - MONGO_INITDB_DATABASE=index
+      - MONGO_INITDB_USERNAME=sgudim
+      - MONGO_INITROOT_PASSWORD=simon
+    volumes:
+    - ./mongo-volume:/data/db 
+    ports:
+      - '27017:27017'
