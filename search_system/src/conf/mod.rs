@@ -8,9 +8,6 @@ use tracing::{info, instrument};
 use tracing_subscriber::EnvFilter;
 
 
-
-
-
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub host: String,

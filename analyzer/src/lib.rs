@@ -1,46 +1,21 @@
-use std::io::Error;
-use std::fs::File;
-use std::io::BufReader;
-use std::io::prelude::*;
+mod sorting;
+mod readers;
+
 use regex::Regex;
 use unicode_segmentation::UnicodeSegmentation;
 use porter_stemmer::stem;
 use std::collections::{HashSet, HashMap};
 use stopwords::{Spark, Language, Stopwords};
-use std::fs::{self, DirEntry};
-use std::path::Path;
 
-
-// pub struct Analyzer {
-//     max_docs: i32
-// }
 
 #[derive(Debug)]
 pub struct WordStats {
-    docs: HashSet<i32>,
-    position: Vec<i32>,
-    word_length: i32,
-    freq: i32,
+    pub docs: HashSet<i32>,
+    pub position: Vec<i32>,
+    pub word_length: i32,
+    pub freq: i32,
 }
 
-
-pub fn read_file_from_dir(path: &str) -> Vec<String> {
-    let mut result: Vec<String> = Vec::new();
-    let path_buf = Path::new(path);
-    if path_buf.is_dir() {
-        for entry in fs::read_dir(path_buf).unwrap() {
-            let entry = entry.unwrap();
-            let file = File::open(entry.path()).unwrap();
-            let mut buf_reader = BufReader::new(file);
-            let mut contents = String::new();
-            buf_reader.read_to_string(&mut contents).unwrap();
-            result.push(contents);
-        }
-    } else {
-        panic!("the directory is not correct")
-    }
-    result
-}
 
 pub fn create_tokens_list<'a>(text: &'a String) -> Vec<String> {
     let re = Regex::new("[^0-9a-zA-Z]+").unwrap();
@@ -83,88 +58,35 @@ pub fn create_index(data: Vec<Vec<String>>) -> HashMap<String, WordStats> {
     index
 }
 
-pub fn merge<T: Copy + PartialOrd>(a: &Vec<T>, mut l1: usize, r1: usize, mut l2: usize, r2: usize,) -> Vec<T> {
-    let mut temp = vec![];
-    let mut index = 0;
-    while l1 <= r1 && l2 <= r2 {
-        if a[l1] <= a[l2] {
-            temp.push(a[l1]);
-            index += 1;
-            l1 += 1
-        } else {
-            temp.push(a[l2]);
-            index += 1;
-            l2 += 1;
-        }
-    }
-
-    while l1 <= r1 {
-        temp.push(a[l1]);
-        index += 1;
-        l1 += 1;
-    }
-
-    while l2 <= r2 {
-        temp.push(a[l2]);
-        index += 1;
-        l2 += 1;
-    }
-    temp
-}
-
-pub fn mergesort<T: Copy + PartialOrd>(mut items: Vec<T>) -> Vec<T> {
-    let mut size: usize = 1;
-    let n: usize = items.len();
-    while size < n {
-        let mut i: usize = 0;
-
-        while i < n {
-            let l1: usize = i;
-            let r1: usize = i + size - 1;
-            let mut r2: usize= i + 2 * size - 1;
-            let l2: usize= i + size;
-
-            if l2 >= n {
-                break
-            }
-
-            if r2 >= n {
-                r2 = n - 1;
-            }
-
-            let temp = merge(&items, l1, r1, l2, r2);
-            for j in 0..(r2-l1 +1) {
-                items[i + j] = temp[j];
-            }
-            i = i + 2 * size;
-        }
-        size = 2 * size;
-    }
-    items
-}
-
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn execute() {
-        let docs: Vec<String> = read_file_from_dir("./test_data");
-        let mut temp = vec![];
-        for i in docs {
-            temp.push(create_tokens_list(&i));
-        }
-        println!("{:?}", create_index(temp));
+    #[ignore]
+    fn execute_test() {
         assert_eq!(1+1 , 2);
     }
 
     #[test]
+    #[ignore]
     fn test_mergesort() {
         let mut items: Vec<&str> = vec!["ann", "black", "shoe", "tree", "jack", "abb"];
         let check: Vec<&str> = vec!["abb", "ann", "black", "jack", "shoe", "tree"];
-        items = mergesort(items);
+        items = sorting::mergesort(items);
         assert_eq!(items, check);
     }
+
+    #[test]
+    #[ignore]
+    fn test_readpdf() {
+        assert_eq!(readers::read_pdf("/Users/simon/Documents/code/git_repo/test_data/1st Advantage Federal Credit Union/Mastercard Consumer Agreement.pdf"), "foo".to_owned());
+    }
+
+    #[test]
+    fn read_text() { 
+        assert_eq!(readers::read_text("/Users/simon/Downloads/test_data/abstracts/Aafaq_Spatio-Temporal_Dynamics_and_Semantic_Attribute_Enriched_Visual_Encoding_for_Video_CVPR_2019_paper.txt"), "foo".to_owned())
+    }
+
 }

@@ -6,7 +6,7 @@ mod routes;
 extern crate diesel;
 #[macro_use]
 extern crate validator_derive;
-#[macro_use]
+
 extern crate actix_web;
 extern crate argonautica;
 

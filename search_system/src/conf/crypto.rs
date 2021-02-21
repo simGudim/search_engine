@@ -2,7 +2,6 @@ use color_eyre::Result;
 use std::sync::Arc;
 use argonautica::Hasher;
 use eyre::eyre;
-use tracing::instrument;
 
 #[derive(Debug, Clone)]
 pub struct CryptoService {
@@ -11,7 +10,6 @@ pub struct CryptoService {
 
 impl CryptoService {
 
-    #[instrument(self, password)]
     pub fn hash_password(&self, password: String) -> Result<String> {
         Hasher::default()
             .with_secret_key(&*self.key)
