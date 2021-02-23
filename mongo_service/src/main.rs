@@ -1,3 +1,5 @@
+// mod analyzer;
+
 use bson::{bson, doc};
 use chrono::offset::Utc;
 use mongodb::Error as MongoEror;
@@ -5,7 +7,8 @@ use r2d2::Pool;
 use mongodb::db::{Database, ThreadedDatabase};
 use r2d2_mongodb::{ConnectionOptions, MongodbConnectionManager};
 use serde_derive::{Deserialize, Serialize};
-use analyzer::{WordStats};
+use analyzer::{WordStats, create_tokens_list, create_index};
+use analyzer::{read_files_from_dir, read_text};
 use bson::Bson;
 use url::Url;
 use tokio;
@@ -40,19 +43,17 @@ pub async fn check_ifexists(conn: &Database, word: &String) -> bool{
 pub async fn add_word(conn: &Database, word: String, stats: WordStats) -> Result<(), MongoEror> {
     let check = check_ifexists(conn, &word).await;
     if check {
-        println!("got here");
         let filter = doc!{ "word": word };
         let update = doc!{ "$addToSet": { 
             "docs" : { "$each" : stats.docs.into_iter().map(Bson::from).collect::<Vec<_>>()},
             },
             "$push" : {
-                "positions" : stats.position.into_iter().map(Bson::from).collect::<Vec<_>>()
+                "positions" : { "$each" : stats.position.into_iter().map(Bson::from).collect::<Vec<_>>() }
             },
             "$inc" : {"freq" : stats.freq}
         };
         conn.collection("index").update_one(filter, update, None).map(drop)
     } else {
-        println!("got here2");
         let doc = doc! {
             "word" : word,
             "docs" : stats.docs.into_iter().map(Bson::from).collect::<Vec<_>>(),
@@ -97,20 +98,19 @@ pub async fn establish_mongo_conn() -> r2d2::PooledConnection<r2d2_mongodb::Mong
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>>{
     let pool = establish_mongo_conn().await;
-    let mut hash = HashSet::new();
-    hash.insert(3);
-    hash.insert(4);
     
-    let wordstat = WordStats {
-        docs: hash,
-        position: vec![1, 45, 45],
-        word_length: 5,
-        freq: 1
-    };
+    let documents = read_files_from_dir("./test_data");
+    println!("{:?}", documents);
+    let mut tokens = vec![];
+    for i in documents {
+        tokens.push(create_tokens_list(&i));
+    }
+    println!("{:?}", tokens);
 
-    add_word(&pool, "shit".to_owned(), wordstat).await;
-    let word_out = list_index(&pool).await.unwrap();
-    println!("{:?}", word_out);
+    let index = create_index(tokens);
+    println!("{:?}", index);
+    for (key, value) in index.into_iter() {
+        add_word(&pool, key, value).await;
+    }
     Ok(())
-
 }
