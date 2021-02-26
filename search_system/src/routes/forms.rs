@@ -27,6 +27,11 @@ pub struct LoginForm{
     pub password: String
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DirForm{
+    pub dir: String
+}
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct NewUser {
     #[validate(length(min = 3))]

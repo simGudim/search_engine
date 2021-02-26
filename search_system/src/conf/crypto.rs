@@ -9,7 +9,6 @@ pub struct CryptoService {
 }
 
 impl CryptoService {
-
     pub fn hash_password(&self, password: String) -> Result<String> {
         Hasher::default()
             .with_secret_key(&*self.key)

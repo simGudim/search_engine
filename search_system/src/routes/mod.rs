@@ -1,9 +1,11 @@
 mod forms;
 
-use forms::{HelloTemplate, LoginForm, NewUser};
+use analyzer;
+use forms::{HelloTemplate, LoginForm, NewUser, DirForm};
 use crate::db::models::{User};
 use crate::db::{PgPool, Db};
 use crate::conf::crypto::CryptoService;
+use crate::mongo::{Mongo, MongoConn, MongoPool};
 
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_files::NamedFile;
@@ -15,6 +17,13 @@ use chrono::{Utc};
 use std::path::PathBuf;
 use std::env;
 use uuid::Uuid;
+
+
+//IDEAs
+//Make query AND OR and proximit searcg
+//make preview window
+//make a confog file for analyzer and options
+
 
 
 pub async fn index(_req: HttpRequest) -> Result<HttpResponse> {
@@ -65,6 +74,28 @@ pub async fn register(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> Resu
 pub async fn login_link() -> Result<NamedFile> {
     let path: PathBuf = "./templates/login.html".parse().unwrap();
     Ok(NamedFile::open(path)?)
+}
+
+
+//make this multithreaded and make this into one call
+#[post("/pipe")]
+pub async fn pipe(pool:web::Data<MongoPool>, form: web::Form<DirForm>, id: Identity) -> impl Responder {
+    if id.identity().is_some() {
+        let conn = pool.get().expect("couldn't get db connection from pool");
+        let documents = analyzer::read_files_from_dir(form.dir.as_str());
+        let mut tokens = vec![];
+        for i in documents {
+            tokens.push(analyzer::create_tokens_list(&i));
+        }
+        let index = analyzer::create_index(tokens);
+
+        for (key, value) in index.into_iter() {
+            Mongo::add_word(&conn, key, value).await;
+        }
+        HttpResponse::Ok().body("Index is running")
+    } else {
+        HttpResponse::Found().header("Location", "/login").finish()
+    }
 }
 
 #[post("/login")]

@@ -33,3 +33,22 @@ diesel = { version = "^1.1.0", features = ["chrono", "postgres", "r2d2", "uuidv0
 r2d2 = "0.8"
 r2d2_postgres = "0.18"
 failure = "0.1"
+r2d2-mongodb = "0.2.2"
+mongodb = "0.3"
+bson = "0.13"
+regex = "1"
+porter-stemmer = "0.1.1"
+unicode-segmentation = "1.7.1"
+stopwords = "0.1.0"
+lopdf = "0.26"
+pdf-extract = "0.6.2"
+pdf = "0.7.1"
+url = "1.7"
+
+[lib]
+name = "analyzer"
+path = "./../analyzer/src/lib.rs"
+
+[[bin]]
+name = "mybin"
+path = "src/main.rs"

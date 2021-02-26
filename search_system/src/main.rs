@@ -1,6 +1,7 @@
 mod conf;
 mod db;
 mod routes;
+mod mongo;
 
 #[macro_use]
 extern crate diesel;
@@ -12,6 +13,7 @@ extern crate argonautica;
 
 use crate::conf::Config;
 use crate::db::Db;
+use crate::mongo::Mongo;
 
 use actix_files as fs;
 use actix_web::{web, App, HttpServer};
@@ -27,6 +29,8 @@ async fn main() -> std::io::Result<()> {
         .expect("Server configuration");
 
     let db = Db::establish_connection().await;
+
+    let mongo_pool = Mongo::establish_mongo_conn().await;
     
     info!("Starting server at http://{}:{}", config.host, config.port);
     HttpServer::new(move || {
@@ -37,6 +41,7 @@ async fn main() -> std::io::Result<()> {
                       .name("auth-cookie")
                       .secure(false)))
             .data(db.pool.clone())
+            .data(mongo_pool.clone())
             .service(fs::Files::new("/static", ".").show_files_listing())
             .route("/", web::get().to(routes::index))
             .service(routes::register)
@@ -45,6 +50,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::login)
             .service(routes::search)
             .service(routes::logout)
+            .service(routes::pipe)
             .route("/hey", web::get().to(routes::manual_hello))
     })
     .bind(format!("{}:{}", config.host, config.port))?
