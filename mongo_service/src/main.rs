@@ -100,15 +100,12 @@ async fn main() -> Result<(), Box<dyn Error>>{
     let pool = establish_mongo_conn().await;
     
     let documents = read_files_from_dir("./test_data");
-    println!("{:?}", documents);
     let mut tokens = vec![];
     for i in documents {
         tokens.push(create_tokens_list(&i));
     }
-    println!("{:?}", tokens);
 
     let index = create_index(tokens);
-    println!("{:?}", index);
     for (key, value) in index.into_iter() {
         add_word(&pool, key, value).await;
     }
