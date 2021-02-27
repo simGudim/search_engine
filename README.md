@@ -1,7 +1,7 @@
 # search_engine
 
-<h1>Whud Up My Sexy Jigga</h1>
-<h2>Shit list</h2>
+<h1>Yes</h1>
+<h2>Hello</h2>
 <ul>
 <li>//Make query AND OR and proximit searcg</li>
 <li>//make preview window</li>
