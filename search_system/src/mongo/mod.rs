@@ -15,7 +15,7 @@ use tracing::{info, instrument};
 pub struct WordOut {
     pub word: String,
     pub docs: Vec<i32>,
-    pub positions: Vec<Vec<i32>>,
+    pub positions: Vec<Vec<Bson>>,
     pub word_length: i32,
     pub freq: i32
 }
@@ -106,6 +106,16 @@ impl Mongo {
                 Ok(vec)
             })
     }
+    
+
+    // pub async query_words(conn: &Database) -> Result<Vec<WordOut>, MongoEror> {
+    //     let filter = doc!{"word" : {
+    //         "$in" : words
+    //     }}
+
+    //     conn.collection("index").find();
+    //     Ok()
+    // }
 
     #[instrument]
     pub async fn establish_mongo_conn() -> MongoPool {

@@ -11,15 +11,7 @@ pub struct HelloTemplate<'a> {
 
 #[derive(Template)]
 #[template(path = "login.html")]
-pub struct Login;
-
-#[derive(Template)]
-#[template(path = "something.html")]
-pub struct Something;
-
-#[derive(Template)]
-#[template(path = "search.html")]
-pub struct Search;
+pub struct LoginGet;
 
 #[derive(Debug, Deserialize)]
 pub struct LoginForm{
@@ -27,10 +19,24 @@ pub struct LoginForm{
     pub password: String
 }
 
+#[derive(Template)]
+#[template(path = "submit_index.html")]
+pub struct SubmitIndex;
+
+
 #[derive(Debug, Deserialize)]
 pub struct DirForm{
     pub dir: String
 }
+
+#[derive(Template)]
+#[template(path = "search.html")]
+pub struct SearchGet;
+
+#[derive(Template)]
+#[template(path = "something.html")]
+pub struct Something;
+
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct NewUser {

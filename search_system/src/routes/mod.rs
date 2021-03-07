@@ -17,6 +17,7 @@ use chrono::{Utc};
 use std::path::PathBuf;
 use std::env;
 use uuid::Uuid;
+use tracing::{info};
 
 
 //IDEAs
@@ -35,13 +36,13 @@ pub async fn index(_req: HttpRequest) -> Result<HttpResponse> {
 }
 
 #[get("/register")]
-pub async fn register_link() -> Result<NamedFile> {
+pub async fn register_get() -> Result<NamedFile> {
     let path: PathBuf = "./templates/register.html".parse().unwrap();
     Ok(NamedFile::open(path)?)
 }
 
 #[post("/register")]
-pub async fn register(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> Result<NamedFile> {
+pub async fn register_post(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> Result<NamedFile> {
     let secret = env::var("SECRET_KEY")
         .expect("SECRET KEY must be set");
     let crypto = CryptoService::crypto_service(secret);
@@ -71,15 +72,90 @@ pub async fn register(pool: web::Data<PgPool>, info: web::Form<NewUser>) -> Resu
 }
 
 #[get("/login")]
-pub async fn login_link() -> Result<NamedFile> {
-    let path: PathBuf = "./templates/login.html".parse().unwrap();
-    Ok(NamedFile::open(path)?)
+pub async fn login_get() -> impl Responder {
+    // let path: PathBuf = "./templates/login.html".parse().unwrap();
+    // Ok(NamedFile::open(path)?)
+    HttpResponse::Ok()
+            .content_type("text/html")
+            .body(forms::LoginGet.render().unwrap())
 }
 
+#[post("/login")]
+pub async fn login_post(pool: web::Data<PgPool>,form: web::Form<LoginForm>, id: Identity) -> impl Responder {
+    let mut verifier = Verifier::default();
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    let user = Db::get_user_by_username(&form.username, &conn).await.unwrap();
+    let is_valid = verifier
+        .with_hash(user.password_hash)
+        .with_password(form.password.clone())
+        .with_secret_key(env::var("SECRET_KEY").expect("SECRET KEY must be set"))
+        .verify()
+        .unwrap();
+    if is_valid {
+        // let path: PathBuf = "./templates/submit_index.html".parse().unwrap();
+        id.remember(user.id.to_string());
+        // NamedFile::open(path).unwrap();
+        HttpResponse::Found().header("Location", "/submit_index").finish()
+    } else {
+        // let path: PathBuf = "./templates/login.html".parse().unwrap();
+        // NamedFile::open(path).unwrap();
+        HttpResponse::Found().header("Location", "/login").finish()
+    }
+}
+
+#[get("/logout")]
+pub async fn logout(id: Identity)-> impl Responder {
+    if id.identity().is_some() {
+        id.forget();
+        HttpResponse::Found().header("Location", "/login").finish()
+    } else {
+        HttpResponse::Ok()
+            .content_type("text/html")
+            .body(forms::Something.render().unwrap())
+    }              
+}
+
+#[get("/list_index")]
+pub async fn list_index(pool:web::Data<MongoPool>, id: Identity)-> impl Responder {
+    if id.identity().is_some() {
+        let conn = pool.get().expect("couldn't get db connection from pool");
+        let index = Mongo::list_index(&conn).await.unwrap();
+        info!("{:?}", index);
+        HttpResponse::Found().header("Location", "/login").finish()
+    } else {
+        HttpResponse::Ok()
+            .content_type("text/html")
+            .body(forms::Something.render().unwrap())
+    }              
+}
+
+#[get("/search")]
+pub async fn search_get(id: Identity) -> impl Responder{
+    if id.identity().is_some() {
+        HttpResponse::Ok()
+            .content_type("text/html")
+            .body(forms::SearchGet.render().unwrap())
+    } else {
+        HttpResponse::Found().header("Location", "/login").finish()
+    }
+    
+}
+
+#[get("/submit_index")]
+pub async fn submit_index_get(id: Identity) -> impl Responder{
+    if id.identity().is_some() {
+        HttpResponse::Ok()
+            .content_type("text/html")
+            .body(forms::SubmitIndex.render().unwrap())
+    } else {
+        HttpResponse::Found().header("Location", "/login").finish()
+    }
+    
+}
 
 //make this multithreaded and make this into one call
-#[post("/pipe")]
-pub async fn pipe(pool:web::Data<MongoPool>, form: web::Form<DirForm>, id: Identity) -> impl Responder {
+#[post("/submit_index")]
+pub async fn submit_index_post(pool:web::Data<MongoPool>, form: web::Form<DirForm>, id: Identity) -> impl Responder {
     if id.identity().is_some() {
         let conn = pool.get().expect("couldn't get db connection from pool");
         let documents = analyzer::read_files_from_dir(form.dir.as_str());
@@ -96,51 +172,6 @@ pub async fn pipe(pool:web::Data<MongoPool>, form: web::Form<DirForm>, id: Ident
     } else {
         HttpResponse::Found().header("Location", "/login").finish()
     }
-}
-
-#[post("/login")]
-pub async fn login(pool: web::Data<PgPool>,form: web::Form<LoginForm>, id: Identity) -> Result<NamedFile> {
-    let mut verifier = Verifier::default();
-    let conn = pool.get().expect("couldn't get db connection from pool");
-    let user = Db::get_user_by_username(&form.username, &conn).await.unwrap();
-    let is_valid = verifier
-        .with_hash(user.password_hash)
-        .with_password(form.password.clone())
-        .with_secret_key(env::var("SECRET_KEY").expect("SECRET KEY must be set"))
-        .verify()
-        .unwrap();
-    if is_valid {
-        let path: PathBuf = "./templates/search.html".parse().unwrap();
-        id.remember(user.id.to_string());
-        Ok(NamedFile::open(path)?)
-    } else {
-        let path: PathBuf = "./templates/login.html".parse().unwrap();
-        Ok(NamedFile::open(path)?)
-    }
-}
-
-#[get("/logout")]
-pub async fn logout(id: Identity)-> impl Responder {
-    if id.identity().is_some() {
-        id.forget();
-        HttpResponse::Found().header("Location", "/login").finish()
-    } else {
-        HttpResponse::Ok()
-            .content_type("text/html")
-            .body(forms::Something.render().unwrap())
-    }              
-}
-
-#[get("/search")]
-pub async fn search(id: Identity) -> impl Responder{
-    if id.identity().is_some() {
-        HttpResponse::Ok()
-            .content_type("text/html")
-            .body(forms::Search.render().unwrap())
-    } else {
-        HttpResponse::Found().header("Location", "/login").finish()
-    }
-    
 }
 
 pub async fn manual_hello() -> impl Responder {
