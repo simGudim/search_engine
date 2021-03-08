@@ -51,6 +51,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::submit_index_get)
             .service(routes::submit_index_post)
             .service(routes::search_get)
+            .service(routes::search_post)
             .service(routes::logout)
             .route("/hey", web::get().to(routes::manual_hello))
     })

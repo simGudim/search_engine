@@ -1,5 +1,5 @@
 use askama::{Template};
-use serde::{Deserialize};
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 
@@ -27,6 +27,11 @@ pub struct SubmitIndex;
 #[derive(Debug, Deserialize)]
 pub struct DirForm{
     pub dir: String
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct QueryForm{
+    pub query_terms: String
 }
 
 #[derive(Template)]

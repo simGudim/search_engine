@@ -1,7 +1,7 @@
 mod forms;
 
 use analyzer;
-use forms::{HelloTemplate, LoginForm, NewUser, DirForm};
+use forms::{HelloTemplate, LoginForm, NewUser, DirForm, QueryForm};
 use crate::db::models::{User};
 use crate::db::{PgPool, Db};
 use crate::conf::crypto::CryptoService;
@@ -17,7 +17,7 @@ use chrono::{Utc};
 use std::path::PathBuf;
 use std::env;
 use uuid::Uuid;
-use tracing::{info};
+use tracing::{info, debug, instrument};
 
 
 //IDEAs
@@ -92,13 +92,9 @@ pub async fn login_post(pool: web::Data<PgPool>,form: web::Form<LoginForm>, id: 
         .verify()
         .unwrap();
     if is_valid {
-        // let path: PathBuf = "./templates/submit_index.html".parse().unwrap();
         id.remember(user.id.to_string());
-        // NamedFile::open(path).unwrap();
         HttpResponse::Found().header("Location", "/submit_index").finish()
     } else {
-        // let path: PathBuf = "./templates/login.html".parse().unwrap();
-        // NamedFile::open(path).unwrap();
         HttpResponse::Found().header("Location", "/login").finish()
     }
 }
@@ -130,11 +126,44 @@ pub async fn list_index(pool:web::Data<MongoPool>, id: Identity)-> impl Responde
 }
 
 #[get("/search")]
-pub async fn search_get(id: Identity) -> impl Responder{
+pub async fn search_get(id: Identity) -> impl Responder {
     if id.identity().is_some() {
         HttpResponse::Ok()
             .content_type("text/html")
             .body(forms::SearchGet.render().unwrap())
+    } else {
+        HttpResponse::Found().header("Location", "/login").finish()
+    }
+    
+}
+
+#[post("/search")]
+pub async fn search_post(pool:web::Data<MongoPool>, form: web::Form<QueryForm>,id: Identity) -> impl Responder{
+    if id.identity().is_some() {
+        let conn = pool.get().expect("couldn't get db connection from pool");
+        let query_type: &str;
+        if form.query_terms.contains("/AND") {
+            query_type = "AND";
+        } else if form.query_terms.contains("/OR") {
+            query_type = "OR";
+        } else {
+            query_type = "";
+        }
+        if query_type == "AND" {
+            let query_words = analyzer::create_tokens_list(&form.query_terms.replace("/AND", ""));
+            let query_len = query_words.len();
+            let result = Mongo::query_words(&conn, query_words).await.unwrap();
+            if result.len() == query_len {
+                
+                HttpResponse::Ok().body(format!("{:?}", result))
+            } else {
+                HttpResponse::Ok().body("/AND query came out empty")
+            }
+        } else {
+            let query_words = analyzer::create_tokens_list(&form.query_terms);
+            let result = Mongo::query_words(&conn, query_words).await.unwrap();
+            HttpResponse::Ok().body(format!("{:?}", result))
+        }
     } else {
         HttpResponse::Found().header("Location", "/login").finish()
     }
@@ -168,7 +197,7 @@ pub async fn submit_index_post(pool:web::Data<MongoPool>, form: web::Form<DirFor
         for (key, value) in index.into_iter() {
             Mongo::add_word(&conn, key, value).await;
         }
-        HttpResponse::Ok().body("Index is running")
+        HttpResponse::Found().header("Location", "/search").finish()
     } else {
         HttpResponse::Found().header("Location", "/login").finish()
     }

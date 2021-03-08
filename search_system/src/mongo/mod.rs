@@ -10,15 +10,24 @@ use analyzer::{read_files_from_dir, read_text};
 use bson::Bson;
 use url::Url;
 use tracing::{info, instrument};
+use std::env;
+use std::cmp::Ordering;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct WordOut {
     pub word: String,
     pub docs: Vec<i32>,
-    pub positions: Vec<Vec<Bson>>,
+    pub positions: Vec<Vec<Vec<i32>>>,
     pub word_length: i32,
-    pub freq: i32
+    pub freq: i32,
+    pub doc_len: i32
 }
+
+// impl Ord for WordOut {
+//     fn cmp(&self, other: &Self) -> Ordering {
+//         self.docs.len().cmp(&other.docs.len())
+//     }
+// }
 
 pub type MongoConn = r2d2::PooledConnection<r2d2_mongodb::MongodbConnectionManager>;
 pub type MongoPool = r2d2::Pool<r2d2_mongodb::MongodbConnectionManager>;
@@ -33,16 +42,18 @@ impl Mongo {
                   "word": format!("{}", word)
             }), None).unwrap();
         let exists: bool;
-        if let Some(word) = word {
+        if let Some(_word) = word {
             exists = true;
         } else {
             exists = false;
         }
         exists
     }
+
     // Need to fix the conversion from bson here, need to happen before db insertion
     pub async fn add_word(conn: &Database, word: String, stats: WordStats) -> Result<(), MongoEror> {
         let check = Self::check_ifexists(conn, &word).await;
+        let doc_len = stats.docs.len() as i32;
         if check {
             let filter = doc!{ "word": word };
             let update = doc!{ "$addToSet": { 
@@ -51,9 +62,11 @@ impl Mongo {
                 "$push" : {
                     "positions" : { "$each" : stats.position.into_iter().map(Bson::from).collect::<Vec<_>>() }
                 },
-                "$inc" : {"freq" : stats.freq}
+                "$inc" : {
+                    "freq" : stats.freq,
+                    "doc_len" : doc_len
+                }
             };
-            println!("added a document");
             conn.collection("index").update_one(filter, update, None).map(drop)
         } else {
             let doc = doc! {
@@ -61,35 +74,8 @@ impl Mongo {
                 "docs" : stats.docs.into_iter().map(Bson::from).collect::<Vec<_>>(),
                 "positions" : [stats.position.into_iter().map(Bson::from).collect::<Vec<_>>()],
                 "word_length" : stats.word_length,
-                "freq" : stats.freq
-            };
-        
-            let coll = conn.collection("index");
-            coll.insert_one(doc, None).map(drop)
-        }
-    }
-
-    pub async fn add_many_words(conn: &Database, word: String, stats: WordStats) -> Result<(), MongoEror> {
-        let check = Self::check_ifexists(conn, &word).await;
-        if check {
-            let filter = doc!{ "word": word };
-            let update = doc!{ "$addToSet": { 
-                "docs" : { "$each" : stats.docs.into_iter().map(Bson::from).collect::<Vec<_>>()},
-                },
-                "$push" : {
-                    "positions" : { "$each" : stats.position.into_iter().map(Bson::from).collect::<Vec<_>>() }
-                },
-                "$inc" : {"freq" : stats.freq}
-            };
-            println!("added a document");
-            conn.collection("index").update_one(filter, update, None).map(drop)
-        } else {
-            let doc = doc! {
-                "word" : word,
-                "docs" : stats.docs.into_iter().map(Bson::from).collect::<Vec<_>>(),
-                "positions" : [stats.position.into_iter().map(Bson::from).collect::<Vec<_>>()],
-                "word_length" : stats.word_length,
-                "freq" : stats.freq
+                "freq" : stats.freq,
+                "doc_len" : doc_len
             };
         
             let coll = conn.collection("index");
@@ -106,20 +92,26 @@ impl Mongo {
                 Ok(vec)
             })
     }
-    
 
-    // pub async query_words(conn: &Database) -> Result<Vec<WordOut>, MongoEror> {
-    //     let filter = doc!{"word" : {
-    //         "$in" : words
-    //     }}
 
-    //     conn.collection("index").find();
-    //     Ok()
-    // }
+    pub async fn query_words(conn: &Database, words: Vec<String>) -> Result<Vec<WordOut>, MongoEror> {
+        let filter = doc!{"word" : {
+            "$in" : words.into_iter().map(Bson::from).collect::<Vec<_>>()
+        }};
+        conn.collection("index").find(Some(filter), None).unwrap()
+            .try_fold(Vec::new(), | mut vec, doc| {
+                let doc = doc.unwrap();
+                let wordout: WordOut = bson::from_bson(Bson::Document(doc)).unwrap();
+                vec.push(wordout);
+                Ok(vec)
+            })
+    }
 
     #[instrument]
     pub async fn establish_mongo_conn() -> MongoPool {
-        let addr = Url::parse("mongodb://localhost:27017/admin").unwrap();
+        let database_url = env::var("MONGO_URL")
+                .expect("DATABASE_URL must be set");
+        let addr = Url::parse(&database_url).unwrap();
         info!("Establishing MongoDB connection");
         let manager = MongodbConnectionManager::new(
             ConnectionOptions::builder()
