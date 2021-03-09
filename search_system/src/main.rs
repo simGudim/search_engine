@@ -2,6 +2,8 @@ mod conf;
 mod db;
 mod routes;
 mod mongo;
+mod readers;
+
 
 #[macro_use]
 extern crate diesel;

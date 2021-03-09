@@ -6,6 +6,7 @@ use crate::db::models::{User};
 use crate::db::{PgPool, Db};
 use crate::conf::crypto::CryptoService;
 use crate::mongo::{Mongo, MongoConn, MongoPool};
+use crate::readers;
 
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_files::NamedFile;
@@ -152,9 +153,21 @@ pub async fn search_post(pool:web::Data<MongoPool>, form: web::Form<QueryForm>,i
         if query_type == "AND" {
             let query_words = analyzer::create_tokens_list(&form.query_terms.replace("/AND", ""));
             let query_len = query_words.len();
-            let result = Mongo::query_words(&conn, query_words).await.unwrap();
-            if result.len() == query_len {
-                
+            let mut result = Mongo::query_words(&conn, query_words).await.unwrap();
+            if result.len() == query_len && query_len > 1{
+                result.sort_by(|a, b| b.doc_len.cmp(&a.doc_len));
+                let mut counter = 1;
+                println!("{:?}", &result[0].docs);
+                println!("{:?}", &result.last().unwrap().docs);
+                let intersection = analyzer::intersect_list(&result[0].docs, &result.last().unwrap().docs);
+                println!("{:?}", intersection);
+                // while counter < result.len() - 1 {
+                //     intersection = analyzer::intersect_list(&result[counter].docs, &intersection);
+                //     println!("{:?}", intersection);
+                //     counter += 1;
+                // }
+                HttpResponse::Ok().body(format!("{:?}", intersection))
+            } else if result.len() == query_len && query_len == 1 {
                 HttpResponse::Ok().body(format!("{:?}", result))
             } else {
                 HttpResponse::Ok().body("/AND query came out empty")
@@ -187,7 +200,7 @@ pub async fn submit_index_get(id: Identity) -> impl Responder{
 pub async fn submit_index_post(pool:web::Data<MongoPool>, form: web::Form<DirForm>, id: Identity) -> impl Responder {
     if id.identity().is_some() {
         let conn = pool.get().expect("couldn't get db connection from pool");
-        let documents = analyzer::read_files_from_dir(form.dir.as_str());
+        let documents = readers::read_files_from_dir(form.dir.as_str());
         let mut tokens = vec![];
         for i in documents {
             tokens.push(analyzer::create_tokens_list(&i));

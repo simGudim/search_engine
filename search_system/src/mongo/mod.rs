@@ -5,15 +5,14 @@ use r2d2::Pool;
 use mongodb::db::{Database, ThreadedDatabase};
 use r2d2_mongodb::{ConnectionOptions, MongodbConnectionManager};
 use serde::{Deserialize, Serialize};
-use analyzer::{WordStats, create_tokens_list, create_index};
-use analyzer::{read_files_from_dir, read_text};
+use analyzer::{WordStats};
 use bson::Bson;
 use url::Url;
 use tracing::{info, instrument};
 use std::env;
 use std::cmp::Ordering;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Eq)]
 pub struct WordOut {
     pub word: String,
     pub docs: Vec<i32>,
@@ -23,11 +22,24 @@ pub struct WordOut {
     pub doc_len: i32
 }
 
-// impl Ord for WordOut {
-//     fn cmp(&self, other: &Self) -> Ordering {
-//         self.docs.len().cmp(&other.docs.len())
-//     }
-// }
+impl Ord for WordOut {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.doc_len.cmp(&other.doc_len)
+    }
+}
+
+impl PartialOrd for WordOut {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for WordOut {
+    fn eq(&self, other: &Self) -> bool {
+        self.doc_len == other.doc_len
+    }
+}
+
 
 pub type MongoConn = r2d2::PooledConnection<r2d2_mongodb::MongodbConnectionManager>;
 pub type MongoPool = r2d2::Pool<r2d2_mongodb::MongodbConnectionManager>;
