@@ -26,25 +26,6 @@ use tracing::{info, debug, instrument};
 //make preview window
 //make a confog file for analyzer and options
 
-pub fn intersect_list(post1: &Vec<i32>, post2: &Vec<i32>) -> Vec<i32> {
-    let mut p1 = post1.len();
-    let mut p2 = post2.len();
-    let mut result = Vec::new();
-    while true {
-        while 0 < p1 && post1[p1-1] < post2[p2-1] {p1 -= 1;}
-        if 0 == p1 { break };
-        while 0 < p2 && post1[p1-1] > post2[p2-1] { p2 -= 1; }
-        if 0 == p2 { break };
-        if post1[p1-1] == post2[p2-1] {
-            result.push(post1[p1-1]);
-            p1 -= 1;
-            p2 -= 1;
-            if 0 == p1 || 0 == p2 { break };
-        }
-    }
-
-    result
-}
 
 
 
@@ -177,17 +158,18 @@ pub async fn search_post(pool:web::Data<MongoPool>, form: web::Form<QueryForm>,i
             if result.len() == query_len && query_len > 1{
                 result.sort_by(|a, b| b.doc_len.cmp(&a.doc_len));
                 let mut counter = 1;
-                println!("{:?}", &result[0].docs);
-                println!("{:?}", &result.last().unwrap().docs);
                 let mut post1 = &result[0].docs;
                 let mut post2 = &result.last().unwrap().docs;
-                let intersection = intersect_list(post1, post2);
-                println!("{:?}", intersection);
-                // while counter < result.len() - 1 {
-                //     intersection = analyzer::intersect_list(&result[counter].docs, &intersection);
-                //     println!("{:?}", intersection);
-                //     counter += 1;
-                // }
+                let mut intersection = analyzer::intersect_list(post1, post2);
+                while counter < result.len() - 1 {
+                    let current_list = &result[counter].docs;
+                    println!("{:?}", counter);
+                    if intersection.len() > 0 {
+                        intersection = analyzer::intersect_list(current_list, &intersection);
+                    }
+                    println!("{:?}", intersection);
+                    counter += 1;
+                }
                 HttpResponse::Ok().body(format!("{:?}", intersection))
             } else if result.len() == query_len && query_len == 1 {
                 HttpResponse::Ok().body(format!("{:?}", result))
