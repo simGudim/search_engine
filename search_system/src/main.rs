@@ -16,6 +16,7 @@ extern crate argonautica;
 use crate::conf::Config;
 use crate::db::Db;
 use crate::mongo::Mongo;
+use crate::routes::{login, indexing, search};
 
 use actix_files as fs;
 use actix_web::{web, App, HttpServer};
@@ -46,15 +47,15 @@ async fn main() -> std::io::Result<()> {
             .data(mongo_pool.clone())
             .service(fs::Files::new("/static", ".").show_files_listing())
             .route("/", web::get().to(routes::index))
-            .service(routes::register_get)
-            .service(routes::register_post)
-            .service(routes::login_get)
-            .service(routes::login_post)
-            .service(routes::submit_index_get)
-            .service(routes::submit_index_post)
-            .service(routes::search_get)
-            .service(routes::search_post)
-            .service(routes::logout)
+            .service(login::register_get)
+            .service(login::register_post)
+            .service(login::login_get)
+            .service(login::login_post)
+            .service(login::logout)
+            .service(indexing::submit_index_get)
+            .service(indexing::submit_index_post)
+            .service(search::search_get)
+            .service(search::search_post)
             .route("/hey", web::get().to(routes::manual_hello))
     })
     .bind(format!("{}:{}", config.host, config.port))?
